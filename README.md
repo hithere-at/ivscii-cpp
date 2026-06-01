@@ -14,12 +14,12 @@ Render time: 378ms
 
 #### C++
 ![C++ screenshot optimized](media/bench_cpp_optimized.png)
-Compiler options: `-O2`
+Compiler options: `-O2`<br>
 Render time: 60ms
 
 #### C++ (aggresive optimization)
 ![C++ screenshot aggresive](media/bench_cpp_aggresive.png)
-Compiler options: `-O3 -march=native -pipe -fno-plt`
+Compiler options: `-O3 -march=native -pipe -fno-plt`<br>
 Render time: 57ms
 
 #### Conclusion
@@ -27,7 +27,7 @@ Its almost 6x faster!!!!
 
 ### Examples
 ![osage-chan in ASCII form](media/example.png)
-Render resolution: 960x197
+Render resolution: 960x197<br>
 Render time: 68ms (Alacritty)
 > NOTE: Render time might vary depending on the terminal. ivscii-cpp recommends a GPU accelerated terminal, although any terminal will also work but with lower performance
 
