@@ -1,11 +1,11 @@
-#include <cstdint>
 #include <iostream>
 #include <cstdlib>
-#include <sys/ioctl.h>
-#include <unistd.h>
+#include <cstdint>
 #include <cerrno>
 #include <thread>
 #include <vector>
+
+#include "utils/conv.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "lib/stb_image.h"
@@ -20,7 +20,9 @@ struct args {
     int nwidth = 100;
     int nheight = 36;
     int mode = 2;
+    int color = 0;
     bool no_output = false;
+    bool accurate = false;
 };
 
 // parse integer inputs from command args with all bound checkings
@@ -64,29 +66,17 @@ struct args parse_argv(int count, char *args[]) {
         } else if (strcmp(args[i], "-n") == 0) {
             args_stc.no_output = true;
 
+        } else if (strcmp(args[i], "-a") == 0) {
+            args_stc.accurate = true;
+
+        } else if (strcmp(args[i], "-c") == 0) {
+            args_stc.color = parse_int(0, 2, 0, args[++i]);
+
         }
 
     }
 
     return args_stc;
-}
-
-// takes resized image input of *p_img* with *img_ch* channel, from index *start* to *end*, and writes the ascii character defined in *table* to *p_art*
-// lazy grayscale works by averaging all color channels per pixel. this is by far the fastest method but produces slightly inaccurate output
-// precalculated lookup table is used to speed up grayscaled pixel to ascii conversion
-// by default this function will be run in parallel to speed up processing, but multithreading overhead kills the performance gain on small data. but we have the framework to do it in parallel at least, in case there's a lot of data to process
-void rgb_to_gr_to_art_chunk(char *p_art, unsigned char *p_img, char *table, int img_ch, size_t start, size_t end) {
-
-    for (size_t i = start; i < end; i++) {
-        int px_idx = i * img_ch; // this is the base offset value for pixel data. because *p_img pixel data is interleaved (e.g RGB RGB RGB) and we want to access 3 values at a time
-        uint8_t r = p_img[px_idx];
-        uint8_t g = p_img[px_idx + 1];
-        uint8_t b = p_img[px_idx + 2];
-        uint8_t avg = (r + g + b) / 3;
-        p_art[i] = table[avg];
-
-    }
-
 }
 
 int main(int argc, char *argv[]) {
@@ -127,7 +117,9 @@ int main(int argc, char *argv[]) {
     std::cout << "[!] Output resolution: " << ivscii_args.nwidth << "x" << ivscii_args.nheight << std::endl;
     std::cout << "[!] Sharpness: " << ivscii_args.sharpness << std::endl;
     std::cout << "[!] Mode: " << ivscii_args.mode << std::endl;
-    std::cout << "[!] No art display: " << ((ivscii_args.no_output) ? "yes" : "no") << std::endl << std::endl;
+    std::cout << "[!] No art display: " << ((ivscii_args.no_output) ? "yes" : "no") << std::endl;
+    std::cout << "[!] Accurate grayscale: " << ((ivscii_args.accurate) ? "yes" : "no") << std::endl;
+    std::cout << "[!] Color mode: " << ivscii_args.color << std::endl << std::endl;
 
     std::cout << "[V] Load completed!" << std::endl;
 
@@ -135,6 +127,7 @@ int main(int argc, char *argv[]) {
     // rz stands for resized :)
     int rz_height = ivscii_args.nheight;
     int rz_width = ivscii_args.nwidth;
+    int rz_img_pixels = rz_width * rz_height;
     int rz_channel = 3;
     int rz_img_size = rz_width * rz_height * rz_channel;
     unsigned char *rz_img_data = (unsigned char *)std::malloc(rz_img_size);
@@ -150,8 +143,22 @@ int main(int argc, char *argv[]) {
     std::cout << "[V] Resize completed!" << std::endl;
 
     // grayscaling and art drawing starts here
-    int art_size = rz_width * rz_height;
+    uint32_t art_size = rz_img_pixels;
+    int art_data_stride = 1;
+
+    // add some more space for escape code
+    if (ivscii_args.color == 1) {
+        art_size += (art_size * 11); // space for 256 color mode. value 11 stands for the amount of bytes needed for the color escape code
+        art_data_stride = 12;
+
+    } else if (ivscii_args.color == 2) {
+        art_size += (art_size * 19); // space for 24-bit color mode. value 19 stands for the amount of bytes needed for the color escape code
+        art_data_stride = 20;
+
+    }
+
     char *art_data = (char *)std::malloc(art_size);
+    std::cout << art_size << std::endl;
 
     if (art_data == NULL) {
         std::cerr << "[X] Failed to allocate memory for ASCII art" << std::endl;
@@ -161,14 +168,28 @@ int main(int argc, char *argv[]) {
     }
 
     // process pixel data in chunks and in parallel, to speed up processing
-    int nproc = std::thread::hardware_concurrency();
-    int chunk_size = art_size / nproc;
+    int nproc = (ivscii_args.color == 2) ? 1 : std::thread::hardware_concurrency();
+    uint32_t chunk_size = rz_img_pixels / nproc;
     std::vector<std::thread> jobs;
 
-    for (size_t i = 0; i < nproc; i++) {
-        int start_chunk = i * chunk_size;
-        int end_chunk = (i == nproc-1) ? art_size : start_chunk + chunk_size;
-        jobs.push_back(std::thread(rgb_to_gr_to_art_chunk, art_data, rz_img_data, lookup_table, rz_channel, start_chunk, end_chunk));
+    for (int i = 0; i < nproc; i++) {
+        uint32_t start_chunk = i * chunk_size;
+        start_chunk = (i == 0) ? start_chunk : start_chunk;
+        uint32_t end_chunk = (i == nproc-1) ? rz_img_pixels : start_chunk + chunk_size;
+
+        if (ivscii_args.color == 0 && !ivscii_args.accurate) {
+            jobs.push_back(std::thread(rgb_to_gr_to_art_chunk, art_data, rz_img_data, lookup_table, rz_channel, start_chunk, end_chunk));
+
+        } else if (ivscii_args.color == 0 && ivscii_args.accurate) {
+            jobs.push_back(std::thread(rgb_to_agr_to_art_chunk, art_data, rz_img_data, lookup_table, rz_channel, start_chunk, end_chunk));
+
+        } else if (ivscii_args.color == 2 && !ivscii_args.accurate) {
+            jobs.push_back(std::thread(rgb_to_gr_to_truecolor_art_chunk, art_data, rz_img_data, lookup_table, rz_channel, start_chunk, end_chunk, i));
+
+        } else if (ivscii_args.color == 2 && ivscii_args.accurate) {
+            jobs.push_back(std::thread(rgb_to_agr_to_truecolor_art_chunk, art_data, rz_img_data, lookup_table, rz_channel, start_chunk, end_chunk, i));
+
+        }
 
     }
 
@@ -185,7 +206,7 @@ int main(int argc, char *argv[]) {
     if (!(ivscii_args.no_output)) {
 
         for (size_t i = 0; i < rz_height; i++) {
-            output.append(&art_data[i * rz_width], rz_width);
+            output.append(&art_data[i * art_data_stride * rz_width], art_data_stride * rz_width);
             output += '\n';
         }
 
