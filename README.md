@@ -35,7 +35,7 @@ Render time: 68ms (Alacritty)
 ```
 git clone https://github.com/hithere-at/ivscii-cpp
 cd ivscii-cpp
-g++ -o ivscii -lm -O2 -march=native ivscii.cpp
+g++ -o ivscii -lm -O3 -march=native -pipe -fno-plt ivscii.cpp utils/classes.cpp utils/conv.cpp
 ```
 
 Now execute the program by running:

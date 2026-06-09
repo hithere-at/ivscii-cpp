@@ -1,0 +1,34 @@
+#ifndef _IVSCII_CONSTANTS_H_
+#define _IVSCII_CONSTANTS_H_
+
+//
+#define IVSCII_QUANTIZATION_FACTOR 4
+
+//
+#define IVSCII_NORMAL_MODE 1
+
+//
+#define IVSCII_INVERSED_MODE 2
+
+//
+#define IVSCII_NO_COLOR_MODE 0
+
+//
+#define IVSCII_8BIT_COLOR_MODE 1
+
+//
+#define IVSCII_TRUE_COLOR_MODE 2
+
+//
+#define IVSCII_NO_COLOR_STRIDE 1
+
+//
+#define IVSCII_8BIT_COLOR_STRIDE 12
+
+//
+#define IVSCII_TRUE_COLOR_STRIDE 20
+
+//
+#define IVSCII_RGB 3
+
+#endif
