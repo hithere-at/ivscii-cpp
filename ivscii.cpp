@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
 
     // create a lookup table to directly map pixel data with ascii character. saves many division operations
     // the magic value '4' in this case is the interval of the how many channel data can be represented in a single ascii character
-    // for example, for each 4 color channel value can be represented in an ascii table that has 70 characters
+    // for example, for each 4 color channel value can be represented in an ascii table that has 71 characters
     char lookup_table[256];
 
     if (ivscii_args.mode == IVSCII_NORMAL_MODE) {
@@ -44,15 +44,17 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    std::cout << "[!] Input resolution: " << og_image.width << "x" << og_image.height << std::endl;
-    std::cout << "[!] Output resolution: " << ivscii_args.nwidth << "x" << ivscii_args.nheight << std::endl;
-    std::cout << "[!] Sharpness: " << ivscii_args.sharpness << std::endl;
-    std::cout << "[!] Mode: " << ivscii_args.mode << std::endl;
-    std::cout << "[!] No art display: " << ((ivscii_args.no_output) ? "yes" : "no") << std::endl;
-    std::cout << "[!] Accurate grayscale: " << ((ivscii_args.accurate) ? "yes" : "no") << std::endl;
-    std::cout << "[!] Color mode: " << ivscii_args.color << std::endl << std::endl;
+    // this outputs the information of the ASCII art
+    std::cerr << "[!] Input resolution: " << og_image.width << "x" << og_image.height << std::endl;
+    std::cerr << "[!] Output resolution: " << ivscii_args.nwidth << "x" << ivscii_args.nheight << std::endl;
+    std::cerr << "[!] Sharpness: " << ivscii_args.sharpness << std::endl;
+    std::cerr << "[!] Color mode: " << ivscii_args.color << std::endl;
+    std::cerr << "[!] Mode: " << ivscii_args.mode << std::endl;
+    std::cerr << "[!] No art display: " << ((ivscii_args.no_output) ? "yes" : "no") << std::endl;
+    std::cerr << "[!] Accurate grayscale: " << ((ivscii_args.accurate) ? "yes" : "no") << std::endl;
+    std::cerr << "[!] Multithread: " << ((ivscii_args.multithread) ? "yes" : "no") << std::endl << std::endl;
 
-    std::cout << "[V] Load completed!" << std::endl;
+    std::cerr << "[V] Load image completed!" << std::endl;
 
     // resize image here
     // rz stands for resized :)
@@ -63,30 +65,42 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // resized the image to match the width and the height of the specified resolution for easier parsing
+    // resize the image to match the width and the height of the specified resolution for easier parsing
     stbir_resize_uint8_linear(og_image.data,og_image.width, og_image.height, 0, rz_image.data, rz_image.width, rz_image.height, 0, STBIR_RGB);
-    std::cout << "[V] Resize completed!" << std::endl;
+    std::cerr << "[V] Resize completed!" << std::endl;
 
     // add some more space for escape code
-    int esc_code_len = IVSCII_NO_COLOR_STRIDE;
+    int stride = IVSCII_NO_COLOR_STRIDE;
 
     if (ivscii_args.color == IVSCII_8BIT_COLOR_MODE) {
-        esc_code_len = IVSCII_8BIT_COLOR_STRIDE;
+        stride = IVSCII_8BIT_COLOR_STRIDE;
 
     } else if (ivscii_args.color == IVSCII_TRUE_COLOR_MODE) {
-        esc_code_len = IVSCII_TRUE_COLOR_STRIDE;
+        stride = IVSCII_TRUE_COLOR_STRIDE;
     }
 
-    Image art(rz_image.width, rz_image.height, esc_code_len);
+    Image art(rz_image.width, rz_image.height, stride);
 
     if (art.fail) {
         std::cerr << "[X] Failed to allocate memory for ASCII art" << std::endl;
         return 1;
     }
 
+    // calculate how much thread should be used
+    // the extra code on the if statement is used to handle when std::thread::hardware_concurrency returns 0
+    int nproc;
+
+    if (ivscii_args.multithread) {
+        nproc = (std::thread::hardware_concurrency() != 0 ? std::thread::hardware_concurrency() : 1);
+
+    } else {
+        nproc = 1;
+
+    }
+
     // process pixel data in chunks and in parallel, to speed up processing
-    // int nproc = (ivscii_args.color == IVSCII_TRUE_COLOR_MODE) ? 1 : std::thread::hardware_concurrency();
-    int nproc = std::thread::hardware_concurrency();
+    // also calculates how much pixels should be processed by each thread
+    // and which functions to run depending on the color output type specified by the user
     uint32_t chunk_size = art.pixels / nproc;
     std::thread jobs[nproc];
 
@@ -94,27 +108,21 @@ int main(int argc, char *argv[]) {
         uint32_t start_chunk = i * chunk_size;
         uint32_t end_chunk = (i == nproc-1) ? art.pixels : start_chunk + chunk_size;
 
-        if (ivscii_args.color == IVSCII_NO_COLOR_MODE && !ivscii_args.accurate) {
-            jobs[i] = std::thread(rgb_to_gr_to_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk);
+        if (ivscii_args.color == IVSCII_NO_COLOR_MODE) {
+            jobs[i] = std::thread(rgb_to_gr_to_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk, ivscii_args.accurate);
 
-        } else if (ivscii_args.color == IVSCII_NO_COLOR_MODE && ivscii_args.accurate) {
-            jobs[i] = std::thread(rgb_to_agr_to_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk);
-
-        } else if (ivscii_args.color == IVSCII_TRUE_COLOR_MODE && !ivscii_args.accurate) {
-            jobs[i] = std::thread(rgb_to_gr_to_truecolor_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk);
-
-        } else if (ivscii_args.color == IVSCII_TRUE_COLOR_MODE && ivscii_args.accurate) {
-            jobs[i] = std::thread(rgb_to_agr_to_truecolor_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk);
+        } else if (ivscii_args.color == IVSCII_TRUE_COLOR_MODE) {
+            jobs[i] = std::thread(rgb_to_gr_to_truecolor_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk, ivscii_args.accurate);
 
         }
 
     }
 
-    for (size_t i = 0; i < nproc; i++) {
+    for (int i = 0; i < nproc; i++) {
         jobs[i].join();
     }
 
-    std::cout << "[V] Grayscale and art drawing completed!" << std::endl;
+    std::cerr << "[V] Grayscale and art drawing completed!" << std::endl;
 
     // display start here
     std::string output;
@@ -122,7 +130,8 @@ int main(int argc, char *argv[]) {
 
     if (!ivscii_args.no_output) {
 
-        for (size_t i = 0; i < art.height; i++) {
+        for (int i = 0; i < art.height; i++) {
+            // this code prints the ASCII art per line
             output.append((char *)&art.data[i * art.channel * art.width], art.channel * art.width);
             output += '\n';
         }

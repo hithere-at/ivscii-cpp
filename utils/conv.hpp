@@ -9,21 +9,12 @@
 // by default all functions written here will be run in parallel to speed up processing, but multithreading overhead kills the performance gain on small data. but we have the framework to do it in parallel at least, in case there's a lot of data to process
 
 // RGB to grayscale to ASCII art function
-void rgb_to_gr_to_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end);
+void rgb_to_gr_to_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end, bool accurate);
 
 // RGB to accurate grayscale to ASCII art function
-void rgb_to_agr_to_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end);
-
-// RGB to accurate grayscale to colored ASCII art function
-// void rgb_to_agr_to_color_art_chunk(char *p_art, unsigned char *p_img, char *table, int img_ch, size_t start, size_t end);
-
-// RGB to grayscale to colored ASCII art function
-// void rgb_to_gr_to_color_art_chunk(char *p_art, unsigned char *p_img, char *table, int img_ch, size_t start, size_t end);
-
-// RGB to accurate grayscale to 24-bit colored ASCII art function
-void rgb_to_agr_to_truecolor_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end);
+// void rgb_to_agr_to_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end);
 
 // RGB to grayscale to 24-bit colored ASCII art function
-void rgb_to_gr_to_truecolor_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end);
+void rgb_to_gr_to_truecolor_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end, bool accurate);
 
 #endif
