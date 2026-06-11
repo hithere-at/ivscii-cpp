@@ -15,6 +15,6 @@ void rgb_to_gr_to_art_chunk(unsigned char *p_art, unsigned char *p_img, char *ta
 // void rgb_to_agr_to_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end);
 
 // RGB to grayscale to 24-bit colored ASCII art function
-void rgb_to_gr_to_truecolor_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end, bool accurate);
+void rgb_to_gr_to_truecolor_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end, bool accurate, bool multithread);
 
 #endif

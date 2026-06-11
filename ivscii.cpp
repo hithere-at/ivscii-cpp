@@ -87,39 +87,50 @@ int main(int argc, char *argv[]) {
     }
 
     // calculate how much thread should be used
-    // the extra code on the if statement is used to handle when std::thread::hardware_concurrency returns 0
-    int nproc;
+    // the extra code on the if statement is used to handle when std::thread::hardware_concurrency returns
 
     if (ivscii_args.multithread) {
-        nproc = (std::thread::hardware_concurrency() != 0 ? std::thread::hardware_concurrency() : 1);
 
-    } else {
-        nproc = 1;
+        // calculate how much thread should be used
+        // the extra code on the if statement is used to handle when std::thread::hardware_concurrency returns
+        int nproc = (std::thread::hardware_concurrency() != 0 ? std::thread::hardware_concurrency() : 1);
 
-    }
+        // process pixel data in chunks and in parallel, to speed up processing
+        // also calculates how much pixels should be processed by each thread
+        // and which functions to run depending on the color output type specified by the user
+        uint32_t chunk_size = art.pixels / nproc;
+        std::thread jobs[nproc];
 
-    // process pixel data in chunks and in parallel, to speed up processing
-    // also calculates how much pixels should be processed by each thread
-    // and which functions to run depending on the color output type specified by the user
-    uint32_t chunk_size = art.pixels / nproc;
-    std::thread jobs[nproc];
+        for (int i = 0; i < nproc; i++) {
+            uint32_t start_chunk = i * chunk_size;
+            uint32_t end_chunk = (i == nproc-1) ? art.pixels : start_chunk + chunk_size;
 
-    for (int i = 0; i < nproc; i++) {
-        uint32_t start_chunk = i * chunk_size;
-        uint32_t end_chunk = (i == nproc-1) ? art.pixels : start_chunk + chunk_size;
+            if (ivscii_args.color == IVSCII_NO_COLOR_MODE) {
+                jobs[i] = std::thread(rgb_to_gr_to_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk, ivscii_args.accurate);
 
-        if (ivscii_args.color == IVSCII_NO_COLOR_MODE) {
-            jobs[i] = std::thread(rgb_to_gr_to_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk, ivscii_args.accurate);
+            } else if (ivscii_args.color == IVSCII_TRUE_COLOR_MODE) {
+                jobs[i] = std::thread(rgb_to_gr_to_truecolor_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk, ivscii_args.accurate, ivscii_args.multithread);
 
-        } else if (ivscii_args.color == IVSCII_TRUE_COLOR_MODE) {
-            jobs[i] = std::thread(rgb_to_gr_to_truecolor_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk, ivscii_args.accurate);
+            }
 
         }
 
-    }
+        // start the threads
+        for (int i = 0; i < nproc; i++) {
+            jobs[i].join();
+        }
 
-    for (int i = 0; i < nproc; i++) {
-        jobs[i].join();
+    // do not use std::thread and call the function directly insteda when user does not want to multithread. this reduces overhead
+    } else {
+
+        if (ivscii_args.color == IVSCII_NO_COLOR_MODE) {
+            rgb_to_gr_to_art_chunk(art.data, rz_image.data, lookup_table, rz_image.channel, 0, art.pixels, ivscii_args.accurate);
+
+        } else if (ivscii_args.color == IVSCII_TRUE_COLOR_MODE) {
+            rgb_to_gr_to_truecolor_art_chunk(art.data, rz_image.data, lookup_table, rz_image.channel, 0, art.pixels, ivscii_args.accurate, ivscii_args.multithread);
+
+        }
+
     }
 
     std::cerr << "[V] Grayscale and art drawing completed!" << std::endl;

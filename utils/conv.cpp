@@ -4,10 +4,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 // format a number to 3 digits, 5 becomes 005, 74 becomes 074, etc.
-void format_num(char* p, uint8_t val) {
+void format_num(unsigned char* p, uint8_t val) {
     *(p) = '0' + (val / 100);
     *(p + 1) = '0' + ((val / 10) % 10);
     *(p + 2) = '0' + (val % 10);
@@ -44,15 +45,31 @@ void rgb_to_gr_to_art_chunk(unsigned char *p_art, unsigned char *p_img, char *ta
 }
 
 // RGB to grayscale to 24-bit color ASCII art
+// this function might be very complicated but its really not
 // originally this function is using snprintf to to make implementation easier but after doing some profiling.
 // we found that 25% of the time spent by the program is wasted on millions printf calls. so we decided to just build string manually instead
-void rgb_to_gr_to_truecolor_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end, bool accurate) {
+// also this function originally meant to run in parallel, but we added extra logics such as avoiding malloc and memcpy when its single threadedcd
+void rgb_to_gr_to_truecolor_art_chunk(unsigned char *p_art, unsigned char *p_img, char *table, int img_ch, uint32_t start, uint32_t end, bool accurate, bool multithread) {
 
     // initialize variables to help manual art building
     int iter = 0;
-    uint32_t buf_len = ((end - start) * IVSCII_TRUE_COLOR_STRIDE);
-    uint32_t write_offset = (start * IVSCII_TRUE_COLOR_STRIDE);
-    char buf[buf_len];
+    unsigned char *buf;
+    uint32_t buf_len;
+    uint32_t write_offset;
+
+    // we create a buffer for each thead when its multi threaded
+    if (multithread) {
+        write_offset = (start * IVSCII_TRUE_COLOR_STRIDE);
+        buf_len = ((end - start) * IVSCII_TRUE_COLOR_STRIDE);
+        buf = (unsigned char *)std::malloc(buf_len);
+
+    // otherwise just write the result to p_art directly to avoid malloc and memcpy
+    } else {
+        write_offset = 0;
+        buf_len = end;
+        buf = p_art;
+
+    }
 
     for (size_t i = start; i < end; i++) {
         int px_stride = i * img_ch; // this is the base offset value for pixel data. because *p_img pixel data is interleaved (e.g RGB RGB RGB) and we want to access 3 values at a time
@@ -65,7 +82,7 @@ void rgb_to_gr_to_truecolor_art_chunk(unsigned char *p_art, unsigned char *p_img
         uint8_t gray = grayscale(r, g, b, accurate);
 
         // manually build string instead of using snprintf. shaves around 5ms of render time. worth it? not really but hey it looks cooler
-        char *ptr = buf + art_stride;
+        unsigned char *ptr = buf + art_stride;
         ptr[0] = '\x1b';
         ptr[1] = '[';
         ptr[2] = '3';
@@ -86,7 +103,11 @@ void rgb_to_gr_to_truecolor_art_chunk(unsigned char *p_art, unsigned char *p_img
 
     }
 
-    // lasly copy the thread buffer back to the art buffer
-    std::memcpy(p_art + write_offset, buf, buf_len);
+    // lasly copy the thread buffer back to the art buffer if we multithread this function
+    if (multithread) {
+        std::memcpy(p_art + write_offset, buf, buf_len);
+        free(buf);
+
+    }
 
 }
