@@ -26,12 +26,18 @@ Render time: 57ms
 Its almost 6x faster!!!!
 
 ### Examples
+#### Normal mode (no colors)
 ![osage-chan in ASCII form](media/example.png)
 Render resolution: 960x197<br>
 Render time: 68ms (Alacritty)
 
+#### Normal mode (colored output, foreground color fill)
 ![even higher res osage-chan in ASCII](media/example_color.png)
 Render resolution: 960x197
+
+#### Normal mode (colored output, background color fill)
+![even more detailed osage-chan in ASCII](media/example_color_bg.png)
+Render resolution: 960x200
 
 > NOTE: Render time might vary depending on the terminal and the original image size. ivscii-cpp recommends a GPU accelerated terminal, although any terminal will also work but with lower performance
 

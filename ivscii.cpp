@@ -49,6 +49,7 @@ int main(int argc, char *argv[]) {
     std::cerr << "[!] Output resolution: " << ivscii_args.nwidth << "x" << ivscii_args.nheight << std::endl;
     std::cerr << "[!] Sharpness: " << ivscii_args.sharpness << std::endl;
     std::cerr << "[!] Color mode: " << ivscii_args.color << std::endl;
+    std::cerr << "[!] Color fill: " << ((ivscii_args.fill_bg) ? "background" : "foreground")<< std::endl;
     std::cerr << "[!] Mode: " << ivscii_args.mode << std::endl;
     std::cerr << "[!] No art display: " << ((ivscii_args.no_output) ? "yes" : "no") << std::endl;
     std::cerr << "[!] Accurate grayscale: " << ((ivscii_args.accurate) ? "yes" : "no") << std::endl;
@@ -70,14 +71,7 @@ int main(int argc, char *argv[]) {
     std::cerr << "[V] Resize completed!" << std::endl;
 
     // add some more space for escape code
-    int stride = IVSCII_NO_COLOR_STRIDE;
-
-    if (ivscii_args.color == IVSCII_8BIT_COLOR_MODE) {
-        stride = IVSCII_8BIT_COLOR_STRIDE;
-
-    } else if (ivscii_args.color == IVSCII_TRUE_COLOR_MODE) {
-        stride = IVSCII_TRUE_COLOR_STRIDE;
-    }
+    int stride = (ivscii_args.color) ? IVSCII_TRUE_COLOR_STRIDE : IVSCII_NO_COLOR_STRIDE;
 
     Image art(rz_image.width, rz_image.height, stride);
 
@@ -105,11 +99,23 @@ int main(int argc, char *argv[]) {
             uint32_t start_chunk = i * chunk_size;
             uint32_t end_chunk = (i == nproc-1) ? art.pixels : start_chunk + chunk_size;
 
-            if (ivscii_args.color == IVSCII_NO_COLOR_MODE) {
-                jobs[i] = std::thread(rgb_to_gr_to_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk, ivscii_args.accurate);
+            struct ConvThreadInfo conv_info = {
+                .art_ptr = art.data,
+                .img_ptr = rz_image.data,
+                .gray_table = lookup_table,
+                .img_ch = rz_image.channel,
+                .start = start_chunk,
+                .end = end_chunk,
+                .fill_mode_id = (ivscii_args.fill_bg) ? IVSCII_BG_COLOR_FILL : IVSCII_FG_COLOR_FILL,
+                .is_acc_gray = ivscii_args.accurate
 
-            } else if (ivscii_args.color == IVSCII_TRUE_COLOR_MODE) {
-                jobs[i] = std::thread(rgb_to_gr_to_truecolor_art_chunk, art.data, rz_image.data, lookup_table, rz_image.channel, start_chunk, end_chunk, ivscii_args.accurate, ivscii_args.multithread);
+            };
+
+            if (ivscii_args.color) {
+                jobs[i] = std::thread(rgb_to_gr_to_truecolor_art_chunk, conv_info);
+
+            } else {
+                jobs[i] = std::thread(rgb_to_gr_to_truecolor_art_chunk, conv_info);
 
             }
 
@@ -120,14 +126,25 @@ int main(int argc, char *argv[]) {
             jobs[i].join();
         }
 
-    // do not use std::thread and call the function directly insteda when user does not want to multithread. this reduces overhead
+    // do not use std::thread and call the function directly insteda when user does not want to multithread. this, hopefully, reduces overhead
     } else {
 
-        if (ivscii_args.color == IVSCII_NO_COLOR_MODE) {
-            rgb_to_gr_to_art_chunk(art.data, rz_image.data, lookup_table, rz_image.channel, 0, art.pixels, ivscii_args.accurate);
+        struct ConvThreadInfo conv_info = {
+            .art_ptr = art.data,
+            .img_ptr = rz_image.data,
+            .gray_table = lookup_table,
+            .img_ch = rz_image.channel,
+            .start = 0,
+            .end = art.pixels,
+            .is_acc_gray = ivscii_args.accurate,
 
-        } else if (ivscii_args.color == IVSCII_TRUE_COLOR_MODE) {
-            rgb_to_gr_to_truecolor_art_chunk(art.data, rz_image.data, lookup_table, rz_image.channel, 0, art.pixels, ivscii_args.accurate, ivscii_args.multithread);
+        };
+
+        if (ivscii_args.color) {
+            rgb_to_gr_to_truecolor_art_chunk(conv_info);
+
+        } else {
+            rgb_to_gr_to_art_chunk(conv_info);
 
         }
 

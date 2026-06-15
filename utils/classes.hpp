@@ -14,7 +14,8 @@ class Args {
         int nwidth = 100; // the width of the ASCII art
         int nheight = 36; // the height of the ASCII art
         int mode = IVSCII_NORMAL_MODE; // grayscale render mode
-        int color = IVSCII_NO_COLOR_MODE; // color output type
+        bool color = false; // color output type
+        bool fill_bg = false;
         bool no_output = false; // display the ASCII art or not
         bool accurate = false; // use an accurate grayscale method or not
         bool multithread = false; // multithread ASCII art render or not
@@ -24,6 +25,7 @@ class Args {
 
     private:
         long parse_int(int lower, int upper, int def, const char *to_parse);
+        void show_help();
 
 };
 
@@ -45,6 +47,19 @@ class Image {
 
         Image(char *img_path); // constructor to load an image from image path
         Image(int w, int h, int ch); // constructor to create an empty Image. used when manual handling of Image data is required
+
+};
+
+// ConvThreadInfo is used to store informations needed for worker threads when doing conversion
+struct ConvThreadInfo {
+    unsigned char *art_ptr; // pointer to the ASCII art buffer
+    unsigned char *img_ptr; // pointer to the resized image buffer
+    char *gray_table; // pointer to the generated lookup table
+    int img_ch; // image channel
+    uint32_t start; // index of the image pixel to start reading from
+    uint32_t end; // index of the image pixel to stop reading from
+    char fill_mode_id;
+    bool is_acc_gray; // to determine whether to use an accurate grayscale formula
 
 };
 

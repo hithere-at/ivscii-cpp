@@ -1,0 +1,20 @@
+Steps to do to convert video:
+1. [ ] Add a command arg for video (e.g ivscii video [OPTIONS])
+2. [ ] Probe the video file and get informations such as:
+   - width
+   - height
+   = size
+   - amount of frames
+   - fps
+   - duration
+3. [ ] run ffmpeg on worker threads to decode the video and output the raw RGB values to a pipe (use image2pipe?)
+4. [ ] the worker threads will also convert the RGBs into an ASCII art
+5. [ ] when each thread has finished coverting, do a memcpy to a buffer
+6. [ ] this buffer will be used by another thread that joins the conversion result of N-1 thread together.
+7. [ ] this thread will compress the result using LZ4? and write the compressed data into a file
+
+Possible issues:
+1. - Threads that does the conversion is too slow and the join thread will starve of data
+   - Possible solution: wait for data until all threads has finished executing, even if the buffer is empty. sleep for a milisecond to prevent this thread from polling too much
+
+
