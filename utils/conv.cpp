@@ -10,21 +10,17 @@
 
 // format a number to 3 digits, 5 becomes 005, 74 becomes 074, etc.
 void format_num(unsigned char* p, uint8_t val) {
-    *(p) = '0' + (val / 100);
-    *(p + 1) = '0' + ((val / 10) % 10);
-    *(p + 2) = '0' + (val % 10);
+    p[0] = '0' + (val / 100);
+    p[1] = '0' + ((val / 10) % 10);
+    p[2] = '0' + (val % 10);
 }
 
 // the gray function. takes RGB input and calculate the grayscale
 // if acc is true then it will use a more accurate grayscale method
 // otherwise, use the average method
 uint8_t grayscale(uint8_t r, uint8_t g, uint8_t b, bool acc) {
-    return (acc) ? (((r * 0x4CD) >> 12) +
-                    ((g * 0x972) >> 12) +
-                    ((b * 0x1C4) >> 12))
-                 :
-                 ((r + g + b) / 3);
-    ;
+    return (acc) ? ((r * 77) + (g * 150) + (b * 29)) >> 8
+                 : (r + g + b) / 3;
 
 }
 

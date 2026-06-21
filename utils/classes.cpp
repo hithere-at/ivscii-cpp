@@ -3,7 +3,6 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
-#include <cerrno>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../lib/stb_image.h"
@@ -12,30 +11,38 @@
 long Args::parse_int(int lower, int upper, int def, const char *to_parse) {
     char *endptr;
     const long temp = std::strtol(to_parse, &endptr, 10);
-    return (
-        (errno == ERANGE) ||
-        (endptr == to_parse) ||
-        (temp < lower) ||
-        (temp > upper)
-    ) ? def : temp;
+
+    if (endptr == to_parse) {
+        std::cerr << "Switch argument " << to_parse << " is not a valid number\n";
+        std::exit(EXIT_FAILURE);
+    }
+
+    if ((temp < lower) || (temp > upper)) {
+        std::cerr << "Value " << to_parse << " is out of range. Valid range is a value between " << lower << " to " << upper << "\n";
+        std::exit(EXIT_FAILURE);
+
+    } else {
+        return temp;
+
+    }
 
 }
 
-void Args::show_help() {
-    std::cerr << "Usage: ivscii [OPTIONS] IMAGE_FILE" << std::endl << std::endl;
-    std::cerr << "Options:" << std::endl;
-    std::cerr << "    -w <num>       width of the art. Width limit is 1500" << std::endl;
-    std::cerr << "    -h <num>       height of the art. Height limit is 200" << std::endl;
-    std::cerr << "    -s <num>       \"sharpness\" value of the art, controls how gray value should be represented." << std::endl;
-    std::cerr << "                   the higher the value the more defined the art is but less accurate in terms of brightness." << std::endl;
-    std::cerr << "                   the lower the value the less defined the art is but more accurate it is on the brightness." << std::endl;
-    std::cerr << "    -m <1|2>       the render mode of the art. Value of 1 is the normal, and value of 2 is inversed" << std::endl;
-    std::cerr << "    -n             do not display the ASCII art. Useful to test render time or debugging" << std::endl;
-    std::cerr << "    -a             use a more accurate grayscale formula. might help with accuracy" << std::endl;
-    std::cerr << "    -c             colorize the ASCII art. requires a terminal that support 24-bit color (e.g. alacritty, konsole. kitty)" << std::endl;
-    std::cerr << "    -p             use multithreading to possibly speed up renders. it may or may not speed up the render" << std::endl;
-    std::cerr << "    -b             fill the color on the background instead of foreground. highly recommended, but this is disabled by default" << std::endl;
-    std::cerr << "    --help         show this help message" << std::endl;
+void Args::show_help(char *name) {
+    std::cerr << "Usage: " << name << " [OPTIONS] IMAGE_FILE\n\n";
+    std::cerr << "Options:\n";
+    std::cerr << "    -w <num>       width of the art. Width limit is 1500\n";
+    std::cerr << "    -h <num>       height of the art. Height limit is 200\n";
+    std::cerr << "    -s <num>       \"sharpness\" value of the art, controls how gray value should be represented.\n";
+    std::cerr << "                   the higher the value the more defined the art is but less accurate in terms of brightness.\n";
+    std::cerr << "                   the lower the value the less defined the art is but more accurate it is on the brightness.\n";
+    std::cerr << "    -m <1|2>       the render mode of the art. Value of 1 is the normal, and value of 2 is inversed\n";
+    std::cerr << "    -n             do not display the ASCII art. Useful to test render time or debugging\n";
+    std::cerr << "    -a             use a more accurate grayscale formula. might help with accuracy\n";
+    std::cerr << "    -c             colorize the ASCII art. requires a terminal that support 24-bit color (e.g. alacritty, konsole. kitty)\n";
+    std::cerr << "    -p             use multithreading to possibly speed up renders. it may or may not speed up the render\n";
+    std::cerr << "    -b             fill the color on the background instead of foreground. highly recommended, but this is disabled by default\n";
+    std::cerr << "    --help         show this help message\n";
 
 }
 
@@ -44,10 +51,22 @@ void Args::show_help() {
 // TODO: exit when argument is invalid
 Args::Args(int count, char *args[]) {
 
-    for (size_t i = 0; i < count; i++) {
+    if (count <= 2) {
+        show_help(args[0]);
+        std::exit(EXIT_SUCCESS);
+
+    }
+
+    // loop through all switches
+    for (size_t i = 1; i < count-1; i++) {
+
+        // parse help flag
+        if (strcmp(args[i], "--help") == 0) {
+            show_help(args[0]);
+            std::exit(EXIT_SUCCESS);
 
         // parse sharpness arg
-        if (strcmp(args[i], "-s") == 0) {
+        } else if (strcmp(args[i], "-s") == 0) {
             this->sharpness = parse_int(0, 255, 4, args[++i]);
 
         // parse width arg
@@ -82,10 +101,10 @@ Args::Args(int count, char *args[]) {
         } else if (strcmp(args[i], "-b") == 0) {
             this->fill_bg = true;
 
-        // parse the help flah
-        } else if (strcmp(args[i], "--help") == 0) {
-            show_help();
-            std::exit(EXIT_SUCCESS);
+        } else {
+            std::cerr << "Unknown option \"" << args[i] << "\"\n";
+            std::cerr << "Please run \"" << args[0] << " --help\" for more information\n";
+            std::exit(EXIT_FAILURE);
 
         }
 

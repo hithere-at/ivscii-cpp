@@ -40,29 +40,29 @@ int main(int argc, char *argv[]) {
     Image og_image(img_path);
 
     if (og_image.fail) {
-        std::cerr << "[X] Failed to load image data: " << std::endl;
+        std::cerr << "[X] Failed to load image data\n";
         return 1;
     }
 
     // this outputs the information of the ASCII art
-    std::cerr << "[!] Input resolution: " << og_image.width << "x" << og_image.height << std::endl;
-    std::cerr << "[!] Output resolution: " << ivscii_args.nwidth << "x" << ivscii_args.nheight << std::endl;
-    std::cerr << "[!] Sharpness: " << ivscii_args.sharpness << std::endl;
-    std::cerr << "[!] Color mode: " << ivscii_args.color << std::endl;
-    std::cerr << "[!] Color fill: " << ((ivscii_args.fill_bg) ? "background" : "foreground")<< std::endl;
-    std::cerr << "[!] Mode: " << ivscii_args.mode << std::endl;
-    std::cerr << "[!] No art display: " << ((ivscii_args.no_output) ? "yes" : "no") << std::endl;
-    std::cerr << "[!] Accurate grayscale: " << ((ivscii_args.accurate) ? "yes" : "no") << std::endl;
-    std::cerr << "[!] Multithread: " << ((ivscii_args.multithread) ? "yes" : "no") << std::endl << std::endl;
+    std::cerr << "[!] Input resolution: " << og_image.width << "x" << og_image.height << "\n";
+    std::cerr << "[!] Output resolution: " << ivscii_args.nwidth << "x" << ivscii_args.nheight << "\n";
+    std::cerr << "[!] Sharpness: " << ivscii_args.sharpness << "\n";
+    std::cerr << "[!] Color mode: " << ivscii_args.color << "\n";
+    std::cerr << "[!] Color fill: " << ((ivscii_args.fill_bg) ? "background" : "foreground") << "\n";
+    std::cerr << "[!] Mode: " << ivscii_args.mode << "\n";
+    std::cerr << "[!] No art display: " << ((ivscii_args.no_output) ? "yes" : "no") << "\n";
+    std::cerr << "[!] Accurate grayscale: " << ((ivscii_args.accurate) ? "yes" : "no") << "\n";
+    std::cerr << "[!] Multithread: " << ((ivscii_args.multithread) ? "yes" : "no") << "\n\n";
 
-    std::cerr << "[V] Load image completed!" << std::endl;
+    std::cerr << "[V] Image loaded!\n";
 
     // resize image here
     // rz stands for resized :)
     Image rz_image(ivscii_args.nwidth, ivscii_args.nheight, IVSCII_RGB);
 
     if (rz_image.fail) {
-        std::cerr << "[X] Failed to allocate memory for resized image data!" << std::endl;
+        std::cerr << "[X] Failed to allocate memory for resized image data!\n";
         return 1;
     }
 
@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
     Image art(rz_image.width, rz_image.height, stride);
 
     if (art.fail) {
-        std::cerr << "[X] Failed to allocate memory for ASCII art" << std::endl;
+        std::cerr << "[X] Failed to allocate memory for ASCII art\n";
         return 1;
     }
 
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
 
         // calculate how much thread should be used
         // the extra code on the if statement is used to handle when std::thread::hardware_concurrency returns
-        int nproc = (std::thread::hardware_concurrency() != 0 ? std::thread::hardware_concurrency() : 1);
+        int nproc = (std::thread::hardware_concurrency() != 0) ? std::thread::hardware_concurrency() : 1;
 
         // process pixel data in chunks and in parallel, to speed up processing
         // also calculates how much pixels should be processed by each thread
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
                 jobs[i] = std::thread(rgb_to_gr_to_truecolor_art_chunk, conv_info);
 
             } else {
-                jobs[i] = std::thread(rgb_to_gr_to_truecolor_art_chunk, conv_info);
+                jobs[i] = std::thread(rgb_to_gr_to_art_chunk, conv_info);
 
             }
 
@@ -136,6 +136,7 @@ int main(int argc, char *argv[]) {
             .img_ch = rz_image.channel,
             .start = 0,
             .end = art.pixels,
+            .fill_mode_id = (ivscii_args.fill_bg) ? IVSCII_BG_COLOR_FILL : IVSCII_FG_COLOR_FILL,
             .is_acc_gray = ivscii_args.accurate,
 
         };
@@ -150,7 +151,7 @@ int main(int argc, char *argv[]) {
 
     }
 
-    std::cerr << "[V] Grayscale and art drawing completed!" << std::endl;
+    std::cerr << "[V] Grayscale and art drawing completed!\n";
 
     // display start here
     std::string output;

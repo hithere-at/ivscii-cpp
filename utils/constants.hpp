@@ -15,7 +15,7 @@
 // this value is used to set the background color of ASCII art
 #define IVSCII_BG_COLOR_FILL '4'
 
-// and this one is for foregorund color
+// and this one is for foreground color
 #define IVSCII_FG_COLOR_FILL '3'
 
 // this defines the amount of strides needed to reach the next ASCII character

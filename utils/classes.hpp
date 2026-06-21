@@ -25,7 +25,7 @@ class Args {
 
     private:
         long parse_int(int lower, int upper, int def, const char *to_parse);
-        void show_help();
+        void show_help(char *name);
 
 };
 
